@@ -1,0 +1,66 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'commander/import'
+
+program :version, '0.0.1'
+program :description, 'Performs actions on CSVs'
+
+command :union do |c|
+  c.syntax = 'csv union <file to parse> <file to parse> [options]'
+  c.description = 'Takes two CSVs and creates a third based on the union.'
+  c.example 'Find union in "first.csv" and "second.csv"', 'csv union "first.csv" "second.csv"'
+  c.action do |args, options|
+    if args[0].nil? or args[1].nil?
+      puts "Please specify two files!"
+    else
+      union(args[0], args[1])
+    end
+  end
+end
+
+# @TODO assumes for now that we're keying off the first column in the first file
+def union(file1, file2)
+  # heading = Hash.new
+  data = Array.new
+  nomatch = Array.new
+
+  File.open(file1).each_line do |line|
+    # Find the key on which to find the union.
+    columns = line.split(',').each {|i| i.chomp! }
+    key = columns[0]
+
+    # See if there is a match in the second file
+    match = Array.new
+    File.open(file2).each_line do |line2|
+      columns2 = line2.split(',').each {|i| i.chomp! }
+      if columns2.include?(key)
+        match = columns2
+        break
+      end
+    end
+
+    # If there is a match, merge the
+    if match.empty?
+      nomatch.push columns
+    else
+      data.push(columns.concat(match).uniq)
+    end
+  end
+
+  # Rewrite the data as strings
+  output = ''
+  data.each do |line|
+    output += line.join(',') + "\n"
+  end
+  
+  nomatch_output = ''
+  nomatch.each do |line|
+    nomatch_output += line.join(',') + "\n"
+  end
+
+  # Create a new file.
+  File.open('union.csv', 'w') {|f| f.write(output) }
+  File.open('union-nomatches.csv', 'w') {|f| f.write(nomatch_output) }
+end
+
