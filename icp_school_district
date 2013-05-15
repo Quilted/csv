@@ -1,0 +1,84 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'commander/import'
+require 'csv'
+
+program :version, '0.0.1'
+program :description, 'Reformats ICP school district'
+
+command :reformat do |c|
+  c.syntax = 'icp_school_district reformat <file to parse> [options]'
+  c.description = 'Takes a CSV of school districts and reformats for Drupal feeds import.'
+  c.example 'Reformat "districts.csv"', 'icp_school_district reformat "districts.csv"'
+  c.action do |args, options|
+    if args[0].nil?
+      puts "Please specify a file!"
+    else
+      reformat(args[0])
+    end
+  end
+end
+
+def reformat(csv)
+  data = {}
+  county = ''
+  CSV.foreach(csv, {:headers => true, :header_converters => :symbol}) do |row|
+    # Skip empty rows
+    if row[:county].nil?
+      next
+    # The first row of each county uses the 'county' column
+    # to state the county name.
+    elsif not row[:county].nil? and row[:name_of_school_district].nil?
+      county = row[:county].strip
+      next
+      
+    # Every other row uses the 'county' column to state the city name.
+    else
+      city = row[:county].strip
+    end
+
+    [1,4,6,8,10,12].each do |i|
+      if not row[i].nil?
+        if data.has_key? row[i]
+          match = false
+          data[row[i]][:location].each do |item|
+            if item[:city] == city and item[:county] == county
+              match = true
+              break
+            end
+          end
+          
+          if not match
+            data[row[i]][:location].push({:city => city, :county => county})
+          end
+        else
+          data[row[i]] = 
+            {:location => [{:city => city, :county => county}],
+             :locator_link => row[i+1]}
+             
+         if i == 1
+           data[row[i]][:site_link] = row[:school_district_site]
+         end
+        end
+      end
+    end
+  end
+  
+  # puts data
+
+  # Write the output.
+  CSV.open(File.basename(csv, '.csv') + "_reformatted.csv", "wb") do |csv_row|
+    csv_row << ['district', 'site_link', 'locator_link', 'locations']
+    data.each do |key, value|
+      row = [key, value[:site_link], value[:locator_link]]
+      location = []
+      value[:location].each do |i|
+        location.push(i[:city] + ' - ' + i[:county])
+      end
+      row.push location.join(',')
+      csv_row << row
+    end
+  end
+end
+

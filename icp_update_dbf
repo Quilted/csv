@@ -1,0 +1,64 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'commander/import'
+require 'csv'
+
+program :version, '0.0.1'
+program :description, 'Performs actions on CSVs'
+
+command :update do |c|
+  c.syntax = 'dbf update <file to parse> <file to parse> [options]'
+  c.description = 'Takes a DBF shapefile CSV and merges in ICP status.'
+  c.example 'Update "shapefile.dbf" with data in "update.csv"', 'csv union "shapefile.dbf" "update.csv"'
+  c.action do |args, options|
+    if args[0].nil? or args[1].nil?
+      puts "Please specify two files!"
+    else
+      update(args[0], args[1])
+    end
+  end
+end
+
+def update(icpfile, shapefile)
+  data = []
+  headers = []
+  CSV.foreach(shapefile, {:headers => true, :header_converters => :symbol}) do |shape_row|
+    hoa = 0
+    wta = 0
+    headers = shape_row.headers if headers.empty?
+    CSV.foreach(icpfile, {:headers => true, :header_converters => :symbol}) do |icp_row|
+      # Fix census tract length.
+      census_tract = icp_row[:census_tract]
+      census_tract = census_tract[0, 5] + 0.to_s + census_tract[5, 5] if census_tract.length == 10
+
+      # Check for a match.
+      if shape_row[:geoid10c11] == census_tract
+        # Set status.
+        status = icp_row[:status].downcase
+        if status == 'hoa eligible'
+          hoa = 1
+          wta = 1
+        elsif status == 'wta'
+          hoa = 0
+          wta = 1
+        end
+        break
+      end
+    end
+
+    # Add hoa and wta to the row data.
+    shape_row << hoa
+    shape_row << wta
+    data << shape_row
+  end
+
+  # Write the output.
+  CSV.open(shapefile + "_update.csv", "wb") do |csv|
+    csv << headers.concat(['hoa', 'wta'])
+    data.each do |row|
+      csv << row
+    end
+  end
+end
+
