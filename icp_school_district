@@ -59,6 +59,7 @@ def reformat(csv)
              
          if i == 1
            data[row[i]][:site_link] = row[:school_district_site]
+           data[row[i]][:locator_link] = row[:school_locator_site]
          end
         end
       end
