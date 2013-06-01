@@ -56,11 +56,11 @@ def reformat(csv)
           data[row[i]] = 
             {:location => [{:city => city, :county => county}],
              :locator_link => row[i+1]}
-             
-         if i == 1
-           data[row[i]][:site_link] = row[:school_district_site]
-           data[row[i]][:locator_link] = row[:school_locator_site]
-         end
+        end
+
+        if i == 1
+          data[row[i]][:site_link] = row[:school_district_site] if data[row[i]][:site_link].nil?
+          data[row[i]][:locator_link] = row[:school_locator_site] if data[row[i]][:locator_link].nil?
         end
       end
     end
